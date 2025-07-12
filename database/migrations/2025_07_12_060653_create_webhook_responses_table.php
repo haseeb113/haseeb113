@@ -19,6 +19,9 @@ return new class extends Migration
         $table->text('payload');
         $table->timestamps();
     });
+     Schema::table('users', function (Blueprint $table) {
+        $table->boolean('is_premium')->default(0);
+    });
     }
 
     /**
