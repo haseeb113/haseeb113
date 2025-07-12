@@ -6,13 +6,14 @@ use Illuminate\Http\Request;
 use Stripe\Stripe;
 use Stripe\Checkout\Session;
 use App\Models\WebhookResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 
 class StripeController extends Controller
 {
     public function checkout()
     {
-        \Stripe\Stripe::setApiKey(env('STRIPE_SECRET'));
+        Stripe::setApiKey(env('STRIPE_SECRET'));
 
         $session = Session::create([
             'payment_method_types' => ['card'],
@@ -22,7 +23,7 @@ class StripeController extends Controller
                     'product_data' => [
                         'name' => 'Premium Access',
                     ],
-                    'unit_amount' => 100,
+                    'unit_amount' => 100, // $1 = 100 cents
                 ],
                 'quantity' => 1,
             ]],
@@ -39,7 +40,7 @@ class StripeController extends Controller
 
     public function success(Request $request)
     {
-        return view('premium.success');
+        return redirect('/')->with('success', '✅ Payment successful. Premium Membership activated.');
     }
 
     public function webhook(Request $request)
@@ -47,17 +48,28 @@ class StripeController extends Controller
         $payload = $request->getContent();
         $event = json_decode($payload);
 
-        if ($event->type === 'checkout.session.completed') {
+        if ($event && $event->type === 'checkout.session.completed') {
             $session = $event->data->object;
-            $userId = $session->metadata->user_id;
 
-            \DB::table('users')->where('id', $userId)->update(['is_premium' => 1]);
+            if (isset($session->metadata->user_id)) {
+                $userId = $session->metadata->user_id;
+
+                // Mark user as premium
+                DB::table('users')->where('id', $userId)->update(['is_premium' => 1]);
+
+                // Log the webhook
+                WebhookResponse::create([
+                    'user_id' => $userId,
+                    'payload' => $payload,
+                ]);
+            }
+        } else {
+            // Store all events anyway for logging
+            WebhookResponse::create([
+                'user_id' => null,
+                'payload' => $payload,
+            ]);
         }
-
-        WebhookResponse::create([
-            'user_id' => $session->metadata->user_id ?? null,
-            'payload' => $payload,
-        ]);
 
         return response('Webhook Handled', 200);
     }

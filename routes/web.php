@@ -24,6 +24,9 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/premium', [StripeController::class, 'checkout'])->name('premium.checkout');
     Route::get('/success', [StripeController::class, 'success'])->name('premium.success');
+    Route::get('/checkout', [StripeController::class, 'checkout'])->name('checkout');
+Route::get('/payment-success', [StripeController::class, 'success'])->name('payment.success');
+Route::get('/payment-cancel', [StripeController::class, 'cancel'])->name('payment.cancel');
 });
 
 Route::post('/stripe/webhook', [StripeController::class, 'webhook']);
